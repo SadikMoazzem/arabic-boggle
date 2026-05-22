@@ -11,3 +11,4 @@ playwright-report/
 blob-report/
 .playwright/
 screenshots/
+.vercel/
