@@ -14,6 +14,8 @@ interface Found {
   points: number;
 }
 
+const EMPTY_GRID: string[] = new Array(16).fill('');
+
 function PlayInner() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -22,7 +24,9 @@ function PlayInner() {
 
   const [dict, setDict] = useState<Dictionary | null>(null);
   const [dictError, setDictError] = useState<string | null>(null);
-  const [grid, setGrid] = useState<string[]>(() => generateGrid(4));
+  // Grid is generated on the client only — Math.random() during SSR would
+  // produce a hydration mismatch.
+  const [grid, setGrid] = useState<string[] | null>(null);
   const [path, setPath] = useState<number[]>([]);
   const [found, setFound] = useState<Found[]>([]);
   const [foundSet, setFoundSet] = useState<Set<string>>(new Set());
@@ -34,6 +38,10 @@ function PlayInner() {
   const flashTimer = useRef<number | null>(null);
 
   useEffect(() => {
+    setGrid(generateGrid(4));
+  }, []);
+
+  useEffect(() => {
     let alive = true;
     loadDictionary().then(d => { if (alive) setDict(d); }).catch(e => {
       if (alive) setDictError(String(e));
@@ -42,7 +50,7 @@ function PlayInner() {
   }, []);
 
   useEffect(() => {
-    if (over) return;
+    if (over || !grid) return;
     const id = window.setInterval(() => {
       setTimeLeft(t => {
         if (t <= 1) {
@@ -54,7 +62,7 @@ function PlayInner() {
       });
     }, 1000);
     return () => window.clearInterval(id);
-  }, [over]);
+  }, [over, grid]);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -69,10 +77,11 @@ function PlayInner() {
   }, []);
 
   const score = useMemo(() => found.reduce((s, f) => s + f.points, 0), [found]);
-  const currentWord = useMemo(() => pathToWord(path, grid), [path, grid]);
+  const safeGrid = grid ?? EMPTY_GRID;
+  const currentWord = useMemo(() => pathToWord(path, safeGrid), [path, safeGrid]);
 
   const submit = useCallback(() => {
-    if (!dict || over) {
+    if (!dict || over || !grid) {
       setPath([]);
       return;
     }
@@ -119,7 +128,7 @@ function PlayInner() {
     );
   }
 
-  if (over && dict) {
+  if (over && dict && grid) {
     const all = solveBoard(grid, dict.root, minLength, 4);
     const missed = [...all].filter(w => !foundSet.has(w));
     return <EndScreen score={score} found={found} missed={missed} onReplay={replay} />;
@@ -137,15 +146,15 @@ function PlayInner() {
       </div>
 
       <div className={`current-word ${flash ? `flash-${flash}` : ''}`}>
-        {currentWord || (dict ? 'اسحب لتكوين كلمة' : 'جاري تحميل القاموس...')}
+        {currentWord || (!grid || !dict ? 'جاري التحميل...' : 'اسحب لتكوين كلمة')}
       </div>
 
       <Grid
-        grid={grid}
+        grid={safeGrid}
         path={path}
         onPathChange={setPath}
         onSubmit={submit}
-        disabled={!dict || over}
+        disabled={!dict || over || !grid}
       />
 
       <div className="found-list">
