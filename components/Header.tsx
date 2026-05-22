@@ -15,7 +15,12 @@ export default function Header() {
   return (
     <>
       <header className="app-header">
-        <Link href="/" className="app-title">Arabic Boggle</Link>
+        <Link href="/" className="app-title">
+          <span className="app-title-mark">ب</span>
+          <span>
+            Arabic<span className="app-title-accent">Boggle</span>
+          </span>
+        </Link>
         <button
           className="menu-btn"
           onClick={() => setOpen(true)}

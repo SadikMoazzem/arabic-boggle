@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test.describe('Home', () => {
   test('renders the three CTAs and the header', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Arabic Boggle' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Find words/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /Solo/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /Start a room/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /Join a room/ })).toBeVisible();
