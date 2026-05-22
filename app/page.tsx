@@ -1,58 +1,32 @@
 'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-
-const DURATIONS = [60, 90, 180];
-const MIN_LENGTHS = [3, 4];
+import Link from 'next/link';
+import Header from '@/components/Header';
 
 export default function Home() {
-  const router = useRouter();
-  const [duration, setDuration] = useState(90);
-  const [minLength, setMinLength] = useState(3);
-
   return (
-    <main>
-      <h1>Arabic Boggle</h1>
-      <p className="subtitle">Find as many words as you can before the timer runs out</p>
-
-      <div className="setup-card">
-        <div className="setup-row">
-          <label>Duration (seconds)</label>
-          <div className="choice-group">
-            {DURATIONS.map(d => (
-              <button
-                key={d}
-                className={`choice ${duration === d ? 'active' : ''}`}
-                onClick={() => setDuration(d)}
-              >
-                {d}
-              </button>
-            ))}
-          </div>
+    <>
+      <Header />
+      <main>
+        <div className="home-hero">
+          <h1>Arabic Boggle</h1>
+          <p className="subtitle">Find as many Arabic words as you can on a 4×4 board</p>
         </div>
 
-        <div className="setup-row">
-          <label>Minimum word length</label>
-          <div className="choice-group">
-            {MIN_LENGTHS.map(m => (
-              <button
-                key={m}
-                className={`choice ${minLength === m ? 'active' : ''}`}
-                onClick={() => setMinLength(m)}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
+        <div className="home-actions">
+          <Link className="home-cta primary" href="/solo">
+            <div className="home-cta-title">Solo</div>
+            <div className="home-cta-sub">Practice alone against the clock</div>
+          </Link>
+          <Link className="home-cta" href="/room/new">
+            <div className="home-cta-title">Start a room</div>
+            <div className="home-cta-sub">Host a game and invite friends</div>
+          </Link>
+          <Link className="home-cta" href="/room/join">
+            <div className="home-cta-title">Join a room</div>
+            <div className="home-cta-sub">Enter a 5-character code</div>
+          </Link>
         </div>
-
-        <button
-          className="primary-btn"
-          onClick={() => router.push(`/play?d=${duration}&m=${minLength}`)}
-        >
-          Start
-        </button>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }

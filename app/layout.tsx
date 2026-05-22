@@ -17,7 +17,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" dir="ltr">
-      <body>{children}</body>
+      <body>
+        <div className="app-shell">{children}</div>
+      </body>
     </html>
   );
 }

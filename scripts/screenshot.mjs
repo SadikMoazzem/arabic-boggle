@@ -47,11 +47,39 @@ const browser = await chromium.launch();
 const context = await browser.newContext({ ...devices['Pixel 5'] });
 const page = await context.newPage();
 
-// 1. Setup
+// 0. Home (new CTAs + header)
 await page.goto(BASE);
 await page.waitForLoadState('networkidle');
+await page.screenshot({ path: path.join(OUT, '0-home.png') });
+console.log('captured home');
+
+// 0a. Header menu open
+await page.goto(BASE);
+await page.getByRole('button', { name: 'Open menu' }).click();
+await page.waitForTimeout(150);
+await page.screenshot({ path: path.join(OUT, '0a-menu.png') });
+console.log('captured menu');
+
+// 0b. Room join (code entry)
+await page.goto(`${BASE}/room/join`);
+await page.getByLabel('Room code').fill('BCDFG');
+await page.screenshot({ path: path.join(OUT, '0b-join.png') });
+console.log('captured join');
+
+// 0c. Lobby with nickname + QR
+await page.goto(`${BASE}/room/new`);
+await page.getByRole('button', { name: 'Create room' }).click();
+await page.getByLabel('Your nickname').fill('Sadik');
+await page.getByRole('button', { name: 'Continue' }).click();
+await page.locator('.qr-wrap svg').waitFor({ timeout: 5_000 });
+await page.screenshot({ path: path.join(OUT, '0c-lobby.png') });
+console.log('captured lobby');
+
+// 1. Solo setup
+await page.goto(`${BASE}/solo`);
+await page.waitForLoadState('networkidle');
 await page.screenshot({ path: path.join(OUT, '1-setup.png') });
-console.log('captured setup');
+console.log('captured solo setup');
 
 // 1b. Countdown overlay during the 3-2-1 phase
 await page.goto(`${BASE}/play?d=90&m=3`);
