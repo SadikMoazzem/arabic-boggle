@@ -22,7 +22,7 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: 'Noto Naskh Arabic', 'Amiri', system-ui, -apple-system, sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   min-height: 100vh;
   overscroll-behavior: none;
 }
@@ -154,6 +154,15 @@ h2 {
   background: var(--bg-elev);
   margin-bottom: 12px;
   transition: background 0.2s;
+  font-family: 'Noto Naskh Arabic', 'Amiri', system-ui, sans-serif;
+}
+
+.current-word.placeholder {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  letter-spacing: 0;
+  font-weight: 500;
+  color: var(--text-dim);
 }
 
 .current-word.flash-good {
@@ -189,6 +198,7 @@ h2 {
   box-shadow: var(--shadow);
   transition: transform 0.08s, background 0.08s;
   pointer-events: auto;
+  font-family: 'Noto Naskh Arabic', 'Amiri', system-ui, sans-serif;
 }
 
 .cell.on-path {
@@ -227,6 +237,11 @@ h2 {
   background: var(--tile);
   border-radius: 999px;
   font-size: 16px;
+  font-family: 'Noto Naskh Arabic', 'Amiri', system-ui, sans-serif;
+}
+
+.found-chip small {
+  font-family: system-ui, -apple-system, sans-serif;
 }
 
 .end-card {

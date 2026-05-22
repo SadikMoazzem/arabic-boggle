@@ -4,8 +4,11 @@ import { cellCenter, drawPath, findAllWords, findOneWord, readGrid } from './hel
 const PLAY_URL = '/play?d=90&m=3';
 
 async function waitForReady(page: import('@playwright/test').Page) {
-  // Once the dict has loaded, the placeholder switches to "اسحب لتكوين كلمة".
-  await expect(page.locator('.current-word')).toContainText('اسحب', { timeout: 10_000 });
+  // Once the dict and grid have loaded, the placeholder switches to
+  // "Drag to form a word".
+  await expect(page.locator('.current-word')).toContainText('Drag to form a word', {
+    timeout: 10_000,
+  });
 }
 
 test.describe('Play screen', () => {
@@ -45,7 +48,7 @@ test.describe('Play screen', () => {
 
     // Release ends the gesture; word is too short → rejection toast.
     await page.mouse.up();
-    await expect(page.locator('.toast')).toContainText('أقل من 3 حروف');
+    await expect(page.locator('.toast')).toContainText('Need 3+ letters');
   });
 
   test('non-adjacent cell is ignored mid-drag', async ({ page }) => {
@@ -111,7 +114,7 @@ test.describe('Play screen', () => {
 
       // Submit the same word again on the same path.
       await drawPath(page, hit.path);
-      await expect(page.locator('.toast')).toContainText('مكررة');
+      await expect(page.locator('.toast')).toContainText('Already found');
       attempted = true;
     }
     expect(attempted, 'no valid word to test duplicate logic with').toBe(true);
@@ -128,9 +131,9 @@ test.describe('Play screen', () => {
     // Fast-forward the full 90s.
     await page.clock.runFor(91_000);
 
-    await expect(page.getByText('انتهى الوقت!')).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByText('كلماتك')).toBeVisible();
-    await expect(page.getByText(/أفضل \d+ كلمات فاتتك/)).toBeVisible();
+    await expect(page.getByText("Time's up!")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/^Your words/)).toBeVisible();
+    await expect(page.getByText(/^Top \d+ missed/)).toBeVisible();
 
     // If the board had any findable words, the missed list must include at
     // least one of them (we didn't play any).

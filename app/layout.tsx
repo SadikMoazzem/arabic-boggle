@@ -2,8 +2,8 @@ import './globals.css';
 import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
-  title: 'بوغل العربي',
-  description: 'لعبة بوغل بالعربية',
+  title: 'Arabic Boggle',
+  description: 'Find Arabic words on a 4×4 board',
 };
 
 export const viewport: Viewport = {
@@ -16,7 +16,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl">
+    <html lang="en" dir="ltr">
       <body>{children}</body>
     </html>
   );

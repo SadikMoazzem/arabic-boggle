@@ -88,17 +88,17 @@ function PlayInner() {
     const word = pathToWord(path, grid);
     setPath([]);
     if (word.length < minLength) {
-      showToast(`أقل من ${minLength} حروف`);
+      showToast(`Need ${minLength}+ letters`);
       flashWord('bad');
       return;
     }
     if (foundSet.has(word)) {
-      showToast('مكررة');
+      showToast('Already found');
       flashWord('bad');
       return;
     }
     if (!dict.set.has(word)) {
-      showToast('غير موجودة في القاموس');
+      showToast('Not in dictionary');
       flashWord('bad');
       return;
     }
@@ -121,9 +121,9 @@ function PlayInner() {
   if (dictError) {
     return (
       <main>
-        <h2>تعذر تحميل القاموس</h2>
+        <h2>Couldn&apos;t load the dictionary</h2>
         <p style={{ color: 'var(--text-dim)' }}>{dictError}</p>
-        <button className="primary-btn" onClick={() => router.push('/')}>رجوع</button>
+        <button className="primary-btn" onClick={() => router.push('/')}>Back</button>
       </main>
     );
   }
@@ -142,11 +142,15 @@ function PlayInner() {
         <div className={`timer ${lowTime ? 'low' : ''}`}>
           {String(Math.floor(timeLeft / 60)).padStart(1, '0')}:{String(timeLeft % 60).padStart(2, '0')}
         </div>
-        <div className="score">{score} نقطة</div>
+        <div className="score">{score} {score === 1 ? 'pt' : 'pts'}</div>
       </div>
 
-      <div className={`current-word ${flash ? `flash-${flash}` : ''}`}>
-        {currentWord || (!grid || !dict ? 'جاري التحميل...' : 'اسحب لتكوين كلمة')}
+      <div
+        className={`current-word ${currentWord ? '' : 'placeholder'} ${
+          flash ? `flash-${flash}` : ''
+        }`}
+      >
+        {currentWord || (!grid || !dict ? 'Loading…' : 'Drag to form a word')}
       </div>
 
       <Grid
@@ -158,7 +162,7 @@ function PlayInner() {
       />
 
       <div className="found-list">
-        <h3>الكلمات الموجودة ({found.length})</h3>
+        <h3>Found ({found.length})</h3>
         <div className="found-words">
           {found.map(f => (
             <span key={f.word} className="found-chip">
@@ -175,7 +179,7 @@ function PlayInner() {
 
 export default function PlayPage() {
   return (
-    <Suspense fallback={<main><p>جاري التحميل...</p></main>}>
+    <Suspense fallback={<main><p>Loading…</p></main>}>
       <PlayInner />
     </Suspense>
   );

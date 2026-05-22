@@ -12,12 +12,12 @@ export default function Home() {
 
   return (
     <main>
-      <h1>بوغل العربي</h1>
-      <p className="subtitle">جد أكبر عدد من الكلمات قبل انتهاء الوقت</p>
+      <h1>Arabic Boggle</h1>
+      <p className="subtitle">Find as many words as you can before the timer runs out</p>
 
       <div className="setup-card">
         <div className="setup-row">
-          <label>المدة (ثانية)</label>
+          <label>Duration (seconds)</label>
           <div className="choice-group">
             {DURATIONS.map(d => (
               <button
@@ -32,7 +32,7 @@ export default function Home() {
         </div>
 
         <div className="setup-row">
-          <label>أقل عدد من الحروف</label>
+          <label>Minimum word length</label>
           <div className="choice-group">
             {MIN_LENGTHS.map(m => (
               <button
@@ -50,7 +50,7 @@ export default function Home() {
           className="primary-btn"
           onClick={() => router.push(`/play?d=${duration}&m=${minLength}`)}
         >
-          ابدأ
+          Start
         </button>
       </div>
     </main>

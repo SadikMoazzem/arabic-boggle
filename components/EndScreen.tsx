@@ -24,14 +24,14 @@ export default function EndScreen({ score, found, missed, onReplay }: Props) {
   return (
     <main>
       <div className="end-card">
-        <div>انتهى الوقت!</div>
+        <div>Time&apos;s up!</div>
         <div className="end-score">{score}</div>
-        <div style={{ color: 'var(--text-dim)' }}>نقطة</div>
+        <div style={{ color: 'var(--text-dim)' }}>{score === 1 ? 'point' : 'points'}</div>
 
         <div className="end-section">
-          <h3>كلماتك ({found.length})</h3>
+          <h3>Your words ({found.length})</h3>
           <div className="found-words">
-            {found.length === 0 && <span style={{ color: 'var(--text-dim)' }}>لا شيء</span>}
+            {found.length === 0 && <span style={{ color: 'var(--text-dim)' }}>None</span>}
             {found.map(f => (
               <span key={f.word} className="found-chip">
                 {f.word} <small style={{ color: 'var(--accent)' }}>+{f.points}</small>
@@ -41,10 +41,10 @@ export default function EndScreen({ score, found, missed, onReplay }: Props) {
         </div>
 
         <div className="end-section">
-          <h3>أفضل {topMissed.length} كلمات فاتتك</h3>
+          <h3>Top {topMissed.length} missed</h3>
           <div className="found-words">
             {topMissed.length === 0 && (
-              <span style={{ color: 'var(--text-dim)' }}>لا توجد</span>
+              <span style={{ color: 'var(--text-dim)' }}>None</span>
             )}
             {topMissed.map(m => (
               <span key={m.word} className="found-chip">
@@ -56,14 +56,14 @@ export default function EndScreen({ score, found, missed, onReplay }: Props) {
       </div>
 
       <button className="primary-btn" onClick={onReplay} style={{ marginBottom: 12 }}>
-        لعبة جديدة
+        New game
       </button>
       <button
         className="primary-btn"
         style={{ background: 'var(--tile)', color: 'var(--text)' }}
         onClick={() => router.push('/')}
       >
-        رجوع
+        Back
       </button>
     </main>
   );
