@@ -12,3 +12,4 @@ blob-report/
 .playwright/
 screenshots/
 .vercel/
+.partykit/

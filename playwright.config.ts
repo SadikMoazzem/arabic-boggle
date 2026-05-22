@@ -22,10 +22,20 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    command: `PORT=${PORT} npm run dev`,
-    url: `http://127.0.0.1:${PORT}`,
-    timeout: 60_000,
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: [
+    {
+      command: `PORT=${PORT} npm run dev`,
+      url: `http://127.0.0.1:${PORT}`,
+      timeout: 60_000,
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: 'npm run pk:dev',
+      // PartyKit's HTTP root returns 404, so wait for the TCP port instead of
+      // a 2xx response.
+      port: 1999,
+      timeout: 60_000,
+      reuseExistingServer: !process.env.CI,
+    },
+  ],
 });

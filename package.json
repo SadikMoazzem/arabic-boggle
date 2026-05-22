@@ -9,10 +9,14 @@
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
     "deploy": "vercel",
-    "deploy:prod": "vercel --prod"
+    "deploy:prod": "vercel --prod",
+    "pk:dev": "partykit dev",
+    "pk:deploy": "partykit deploy"
   },
   "dependencies": {
     "next": "15.0.3",
+    "partykit": "^0.0.115",
+    "partysocket": "^1.1.19",
     "qrcode.react": "^4.2.0",
     "react": "18.3.1",
     "react-dom": "18.3.1"
