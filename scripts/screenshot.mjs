@@ -53,9 +53,15 @@ await page.waitForLoadState('networkidle');
 await page.screenshot({ path: path.join(OUT, '1-setup.png') });
 console.log('captured setup');
 
-// 2. Play (empty grid)
+// 1b. Countdown overlay during the 3-2-1 phase
 await page.goto(`${BASE}/play?d=90&m=3`);
-await page.locator('.current-word:has-text("Drag")').waitFor({ timeout: 10_000 });
+await page.locator('.countdown-overlay').waitFor({ timeout: 10_000 });
+await page.waitForTimeout(200); // let the pulse animation settle a touch
+await page.screenshot({ path: path.join(OUT, '1b-countdown.png') });
+console.log('captured countdown');
+
+// 2. Play (empty grid)
+await page.locator('.current-word:has-text("Drag")').waitFor({ timeout: 15_000 });
 await page.screenshot({ path: path.join(OUT, '2-play-empty.png') });
 console.log('captured play (empty)');
 
@@ -95,7 +101,7 @@ if (hit && hit.path.length >= 3) {
 
 // 5. End screen via clock fast-forward — reload to clear toast/flash first.
 await page.goto(`${BASE}/play?d=60&m=3`);
-await page.locator('.current-word:has-text("Drag")').waitFor({ timeout: 10_000 });
+await page.locator('.current-word:has-text("Drag")').waitFor({ timeout: 15_000 });
 // Submit one valid word so the end screen has something to show.
 const grid2 = await page.evaluate(() => {
   const cells = Array.from(document.querySelectorAll('[data-cell-idx]'));
@@ -118,7 +124,7 @@ if (hit2 && hit2.path.length >= 3) {
 // Actually use clock — but we already started. Just call the route after waiting.
 // Simpler: navigate with d=2 so the timer ends quickly.
 await page.goto(`${BASE}/play?d=10&m=3`);
-await page.locator('.current-word:has-text("Drag")').waitFor({ timeout: 10_000 });
+await page.locator('.current-word:has-text("Drag")').waitFor({ timeout: 15_000 });
 const grid3 = await page.evaluate(() => {
   const cells = Array.from(document.querySelectorAll('[data-cell-idx]'));
   cells.sort((a, b) => Number(a.dataset.cellIdx) - Number(b.dataset.cellIdx));
@@ -136,7 +142,9 @@ if (hit3 && hit3.path.length >= 3) {
   await page.mouse.up();
   await page.waitForTimeout(300);
 }
-await page.locator("text=Time's up!").waitFor({ timeout: 15_000 });
+await page.locator('.current-word:has-text("Time\'s up")').waitFor({ timeout: 15_000 });
+// Let the end-screen trace animation play out so the longest word shows.
+await page.waitForTimeout(2500);
 await page.waitForTimeout(300);
 await page.screenshot({ path: path.join(OUT, '5-end.png'), fullPage: true });
 console.log('captured end screen');

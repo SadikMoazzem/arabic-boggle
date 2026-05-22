@@ -1,6 +1,34 @@
 import { TrieNode } from './dictionary';
 import { neighbors } from './path';
 
+export function findWordPath(grid: string[], word: string, size = 4): number[] | null {
+  const chars = [...word];
+  if (chars.length === 0) return null;
+  const used = new Array<boolean>(grid.length).fill(false);
+
+  function dfs(cellIdx: number, charIdx: number, path: number[]): number[] | null {
+    if (grid[cellIdx] !== chars[charIdx]) return null;
+    const next = [...path, cellIdx];
+    if (charIdx === chars.length - 1) return next;
+    used[cellIdx] = true;
+    for (const nb of neighbors(cellIdx, size)) {
+      if (used[nb]) continue;
+      const r = dfs(nb, charIdx + 1, next);
+      if (r) { used[cellIdx] = false; return r; }
+    }
+    used[cellIdx] = false;
+    return null;
+  }
+
+  for (let i = 0; i < grid.length; i++) {
+    if (grid[i] === chars[0]) {
+      const r = dfs(i, 0, []);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
 export function solveBoard(
   grid: string[],
   root: TrieNode,

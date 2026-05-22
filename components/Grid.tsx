@@ -5,6 +5,7 @@ import { isAdjacent } from '@/lib/path';
 interface Props {
   grid: string[];
   path: number[];
+  tracedPath?: number[];
   onPathChange: (path: number[]) => void;
   onSubmit: () => void;
   disabled?: boolean;
@@ -12,7 +13,14 @@ interface Props {
 
 const SIZE = 4;
 
-export default function Grid({ grid, path, onPathChange, onSubmit, disabled }: Props) {
+export default function Grid({
+  grid,
+  path,
+  tracedPath = [],
+  onPathChange,
+  onSubmit,
+  disabled,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const pathRef = useRef(path);
@@ -39,7 +47,6 @@ export default function Grid({ grid, path, onPathChange, onSubmit, disabled }: P
     }
     const last = cur[cur.length - 1];
     if (last === idx) return;
-    // Drag back to previous cell = undo last cell on path
     if (cur.length >= 2 && cur[cur.length - 2] === idx) {
       onPathChange(cur.slice(0, -1));
       return;
@@ -84,11 +91,20 @@ export default function Grid({ grid, path, onPathChange, onSubmit, disabled }: P
         const pathIdx = path.indexOf(i);
         const isHead = pathIdx === path.length - 1 && pathIdx >= 0;
         const onPath = pathIdx >= 0;
+        const tracedIdx = tracedPath.indexOf(i);
+        const traced = tracedIdx >= 0;
+        const tracedHead = tracedIdx === tracedPath.length - 1 && tracedIdx >= 0;
         return (
           <div
             key={i}
             data-cell-idx={i}
-            className={`cell ${onPath ? 'on-path' : ''} ${isHead ? 'head' : ''}`}
+            className={[
+              'cell',
+              traced ? 'traced' : '',
+              tracedHead ? 'traced-head' : '',
+              onPath ? 'on-path' : '',
+              isHead ? 'head' : '',
+            ].filter(Boolean).join(' ')}
           >
             {letter}
           </div>

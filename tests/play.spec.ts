@@ -4,10 +4,10 @@ import { cellCenter, drawPath, findAllWords, findOneWord, readGrid } from './hel
 const PLAY_URL = '/play?d=90&m=3';
 
 async function waitForReady(page: import('@playwright/test').Page) {
-  // Once the dict and grid have loaded, the placeholder switches to
-  // "Drag to form a word".
+  // Wait through the 3-2-1 countdown and any dict/grid load. Once the game
+  // is actually playable, the placeholder switches to "Drag to form a word".
   await expect(page.locator('.current-word')).toContainText('Drag to form a word', {
-    timeout: 10_000,
+    timeout: 15_000,
   });
 }
 
@@ -120,28 +120,57 @@ test.describe('Play screen', () => {
     expect(attempted, 'no valid word to test duplicate logic with').toBe(true);
   });
 
-  test('timer reaches zero → end screen shows score and top missed', async ({ page }) => {
+  test('timer reaches zero → end screen keeps the grid and shows score', async ({ page }) => {
+    // Install clock before navigation so both the 3s countdown and the 90s
+    // game timer can be advanced under our control.
     await page.clock.install();
     await page.goto(PLAY_URL);
+
+    // Wait for grid + dict to load (real time, not faked).
+    await expect(page.locator('.countdown-overlay')).toBeVisible({ timeout: 10_000 });
+    await page.clock.runFor(4_000);
     await waitForReady(page);
 
     const grid = await readGrid(page);
     const all = findAllWords(grid, 3);
 
-    // Fast-forward the full 90s.
     await page.clock.runFor(91_000);
 
-    await expect(page.getByText("Time's up!")).toBeVisible({ timeout: 5_000 });
+    // Header switches to "Time's up" (in the current-word slot).
+    await expect(page.locator('.current-word')).toContainText("Time's up", { timeout: 5_000 });
+    await expect(page.locator('.end-score')).toBeVisible();
     await expect(page.getByText(/^Your words/)).toBeVisible();
     await expect(page.getByText(/^Top \d+ missed/)).toBeVisible();
 
-    // If the board had any findable words, the missed list must include at
-    // least one of them (we didn't play any).
+    // Grid is still rendered after game over.
+    await expect(page.locator('[data-cell-idx]')).toHaveCount(16);
+
+    // The longest findable word should be traced on the grid (visible cells
+    // with the 'traced' class).
     if (all.size > 0) {
-      const missedChips = await page.locator('.end-section').last().locator('.found-chip').allInnerTexts();
+      const longestLen = Math.max(...[...all].map(w => [...w].length));
+      await expect(page.locator('.cell.traced')).toHaveCount(longestLen, { timeout: 5_000 });
+    }
+
+    // Missed list overlaps with the solver's full solution set.
+    if (all.size > 0) {
+      const missedChips = await page
+        .locator('.found-list')
+        .last()
+        .locator('.found-chip')
+        .allInnerTexts();
       const missedWords = missedChips.map(t => t.split(' ')[0]);
       const overlap = missedWords.filter(w => all.has(w));
       expect(overlap.length).toBeGreaterThan(0);
     }
+  });
+
+  test('countdown overlay appears at the start and disappears when play begins', async ({ page }) => {
+    await page.goto(PLAY_URL);
+    // The overlay should be visible while we're in the countdown phase.
+    await expect(page.locator('.countdown-overlay')).toBeVisible({ timeout: 5_000 });
+    // After the countdown, the overlay is gone and the grid is interactive.
+    await waitForReady(page);
+    await expect(page.locator('.countdown-overlay')).toHaveCount(0);
   });
 });

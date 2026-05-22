@@ -2,10 +2,9 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Grid from '@/components/Grid';
-import EndScreen from '@/components/EndScreen';
 import { generateGrid } from '@/lib/grid';
 import { loadDictionary, type Dictionary } from '@/lib/dictionary';
-import { solveBoard } from '@/lib/solver';
+import { findWordPath, solveBoard } from '@/lib/solver';
 import { scoreWord } from '@/lib/score';
 import { pathToWord } from '@/lib/path';
 
@@ -14,7 +13,13 @@ interface Found {
   points: number;
 }
 
+type GameState = 'countdown' | 'playing' | 'over';
+
 const EMPTY_GRID: string[] = new Array(16).fill('');
+const HINT_INTERVAL_MS = 20_000;
+const TRACE_STEP_MS = 180;
+const TRACE_HOLD_MS = 700;
+const COUNTDOWN_FROM = 3;
 
 function PlayInner() {
   const router = useRouter();
@@ -24,18 +29,21 @@ function PlayInner() {
 
   const [dict, setDict] = useState<Dictionary | null>(null);
   const [dictError, setDictError] = useState<string | null>(null);
-  // Grid is generated on the client only — Math.random() during SSR would
-  // produce a hydration mismatch.
   const [grid, setGrid] = useState<string[] | null>(null);
   const [path, setPath] = useState<number[]>([]);
+  const [tracedPath, setTracedPath] = useState<number[]>([]);
   const [found, setFound] = useState<Found[]>([]);
   const [foundSet, setFoundSet] = useState<Set<string>>(new Set());
   const [timeLeft, setTimeLeft] = useState(duration);
-  const [over, setOver] = useState(false);
+  const [gameState, setGameState] = useState<GameState>('countdown');
+  const [countdown, setCountdown] = useState(COUNTDOWN_FROM);
   const [toast, setToast] = useState<string | null>(null);
   const [flash, setFlash] = useState<'good' | 'bad' | null>(null);
+
   const toastTimer = useRef<number | null>(null);
   const flashTimer = useRef<number | null>(null);
+  const traceTimers = useRef<number[]>([]);
+  const hintTimer = useRef<number | null>(null);
 
   useEffect(() => {
     setGrid(generateGrid(4));
@@ -49,20 +57,92 @@ function PlayInner() {
     return () => { alive = false; };
   }, []);
 
+  // Countdown 3 → 2 → 1 → start, but only after grid + dict are ready.
   useEffect(() => {
-    if (over || !grid) return;
+    if (gameState !== 'countdown' || !grid || !dict) return;
+    if (countdown <= 0) {
+      setGameState('playing');
+      return;
+    }
+    const id = window.setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [gameState, countdown, grid, dict]);
+
+  // Game timer ticks only while playing.
+  useEffect(() => {
+    if (gameState !== 'playing') return;
     const id = window.setInterval(() => {
       setTimeLeft(t => {
         if (t <= 1) {
           window.clearInterval(id);
-          setOver(true);
+          setGameState('over');
           return 0;
         }
         return t - 1;
       });
     }, 1000);
     return () => window.clearInterval(id);
-  }, [over, grid]);
+  }, [gameState]);
+
+  const cancelTrace = useCallback(() => {
+    for (const id of traceTimers.current) window.clearTimeout(id);
+    traceTimers.current = [];
+  }, []);
+
+  const traceOnGrid = useCallback((wordPath: number[], opts: { hold?: boolean } = {}) => {
+    cancelTrace();
+    setTracedPath([]);
+    for (let i = 0; i < wordPath.length; i++) {
+      const id = window.setTimeout(() => {
+        setTracedPath(wordPath.slice(0, i + 1));
+      }, i * TRACE_STEP_MS);
+      traceTimers.current.push(id);
+    }
+    if (!opts.hold) {
+      const clearId = window.setTimeout(() => {
+        setTracedPath([]);
+      }, wordPath.length * TRACE_STEP_MS + TRACE_HOLD_MS);
+      traceTimers.current.push(clearId);
+    }
+  }, [cancelTrace]);
+
+  // Hint: every HINT_INTERVAL_MS without a new find during play, trace one
+  // findable-but-unplayed word. Resets whenever `found` grows.
+  useEffect(() => {
+    if (gameState !== 'playing' || !grid || !dict) return;
+    if (hintTimer.current) window.clearTimeout(hintTimer.current);
+
+    const fireHint = () => {
+      const all = solveBoard(grid, dict.root, minLength, 4);
+      const candidates: string[] = [];
+      for (const w of all) if (!foundSet.has(w)) candidates.push(w);
+      if (candidates.length > 0) {
+        // Prefer mid-length words for hints — not the shortest or the most
+        // overwhelming long one.
+        candidates.sort((a, b) => Math.abs(a.length - 4) - Math.abs(b.length - 4));
+        const chosen = candidates[0];
+        const p = findWordPath(grid, chosen, 4);
+        if (p) traceOnGrid(p);
+      }
+      hintTimer.current = window.setTimeout(fireHint, HINT_INTERVAL_MS);
+    };
+
+    hintTimer.current = window.setTimeout(fireHint, HINT_INTERVAL_MS);
+    return () => {
+      if (hintTimer.current) window.clearTimeout(hintTimer.current);
+    };
+  }, [gameState, grid, dict, minLength, found.length, foundSet, traceOnGrid]);
+
+  // When the game ends, trace the longest findable word on the grid and
+  // keep it visible.
+  useEffect(() => {
+    if (gameState !== 'over' || !grid || !dict) return;
+    const all = solveBoard(grid, dict.root, minLength, 4);
+    if (all.size === 0) return;
+    const longest = [...all].sort((a, b) => b.length - a.length || a.localeCompare(b))[0];
+    const p = findWordPath(grid, longest, 4);
+    if (p) traceOnGrid(p, { hold: true });
+  }, [gameState, grid, dict, minLength, traceOnGrid]);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -81,7 +161,7 @@ function PlayInner() {
   const currentWord = useMemo(() => pathToWord(path, safeGrid), [path, safeGrid]);
 
   const submit = useCallback(() => {
-    if (!dict || over || !grid) {
+    if (!dict || gameState !== 'playing' || !grid) {
       setPath([]);
       return;
     }
@@ -107,16 +187,19 @@ function PlayInner() {
     setFoundSet(prev => new Set(prev).add(word));
     showToast(`+${points}`);
     flashWord('good');
-  }, [dict, foundSet, grid, minLength, over, path, showToast, flashWord]);
+  }, [dict, foundSet, grid, minLength, gameState, path, showToast, flashWord]);
 
   const replay = useCallback(() => {
+    cancelTrace();
+    setTracedPath([]);
     setGrid(generateGrid(4));
     setPath([]);
     setFound([]);
     setFoundSet(new Set());
     setTimeLeft(duration);
-    setOver(false);
-  }, [duration]);
+    setCountdown(COUNTDOWN_FROM);
+    setGameState('countdown');
+  }, [duration, cancelTrace]);
 
   if (dictError) {
     return (
@@ -128,19 +211,34 @@ function PlayInner() {
     );
   }
 
-  if (over && dict && grid) {
-    const all = solveBoard(grid, dict.root, minLength, 4);
-    const missed = [...all].filter(w => !foundSet.has(w));
-    return <EndScreen score={score} found={found} missed={missed} onReplay={replay} />;
-  }
+  const lowTime = gameState === 'playing' && timeLeft <= 10;
+  const placeholder =
+    !grid || !dict
+      ? 'Loading…'
+      : gameState === 'countdown'
+      ? 'Get ready…'
+      : gameState === 'over'
+      ? "Time's up"
+      : 'Drag to form a word';
 
-  const lowTime = timeLeft <= 10;
+  // End screen computation — done once on game over.
+  let missedTop: { word: string; points: number }[] = [];
+  if (gameState === 'over' && grid && dict) {
+    const all = solveBoard(grid, dict.root, minLength, 4);
+    missedTop = [...all]
+      .filter(w => !foundSet.has(w))
+      .map(w => ({ word: w, points: scoreWord(w.length) }))
+      .sort((a, b) => b.points - a.points || b.word.length - a.word.length)
+      .slice(0, 10);
+  }
 
   return (
     <main>
       <div className="hud">
         <div className={`timer ${lowTime ? 'low' : ''}`}>
-          {String(Math.floor(timeLeft / 60)).padStart(1, '0')}:{String(timeLeft % 60).padStart(2, '0')}
+          {gameState === 'over'
+            ? '0:00'
+            : `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}`}
         </div>
         <div className="score">{score} {score === 1 ? 'pt' : 'pts'}</div>
       </div>
@@ -150,27 +248,81 @@ function PlayInner() {
           flash ? `flash-${flash}` : ''
         }`}
       >
-        {currentWord || (!grid || !dict ? 'Loading…' : 'Drag to form a word')}
+        {currentWord || placeholder}
       </div>
 
-      <Grid
-        grid={safeGrid}
-        path={path}
-        onPathChange={setPath}
-        onSubmit={submit}
-        disabled={!dict || over || !grid}
-      />
+      <div className="grid-wrap">
+        <Grid
+          grid={safeGrid}
+          path={path}
+          tracedPath={tracedPath}
+          onPathChange={setPath}
+          onSubmit={submit}
+          disabled={!dict || !grid || gameState !== 'playing'}
+        />
+        {gameState === 'countdown' && grid && dict && (
+          <div className="countdown-overlay" aria-live="polite">
+            <div className="countdown-number">
+              {countdown > 0 ? countdown : 'Go!'}
+            </div>
+          </div>
+        )}
+      </div>
 
-      <div className="found-list">
-        <h3>Found ({found.length})</h3>
-        <div className="found-words">
-          {found.map(f => (
-            <span key={f.word} className="found-chip">
-              {f.word} <small style={{ color: 'var(--accent)' }}>+{f.points}</small>
-            </span>
-          ))}
+      {gameState === 'over' ? (
+        <>
+          <div className="end-summary">
+            <div className="end-score">{score}</div>
+            <div className="end-score-label">{score === 1 ? 'point' : 'points'}</div>
+          </div>
+
+          <div className="found-list">
+            <h3>Your words ({found.length})</h3>
+            <div className="found-words">
+              {found.length === 0 && <span style={{ color: 'var(--text-dim)' }}>None</span>}
+              {found.map(f => (
+                <span key={f.word} className="found-chip">
+                  {f.word} <small style={{ color: 'var(--accent)' }}>+{f.points}</small>
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="found-list">
+            <h3>Top {missedTop.length} missed</h3>
+            <div className="found-words">
+              {missedTop.length === 0 && <span style={{ color: 'var(--text-dim)' }}>None</span>}
+              {missedTop.map(m => (
+                <span key={m.word} className="found-chip">
+                  {m.word} <small style={{ color: 'var(--text-dim)' }}>+{m.points}</small>
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <button className="primary-btn" onClick={replay} style={{ marginTop: 12 }}>
+            New game
+          </button>
+          <button
+            className="primary-btn"
+            style={{ background: 'var(--tile)', color: 'var(--text)', marginTop: 8 }}
+            onClick={() => router.push('/')}
+          >
+            Back
+          </button>
+        </>
+      ) : (
+        <div className="found-list">
+          <h3>Found ({found.length})</h3>
+          <div className="found-words">
+            {found.map(f => (
+              <span key={f.word} className="found-chip">
+                {f.word} <small style={{ color: 'var(--accent)' }}>+{f.points}</small>
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {toast && <div className="toast">{toast}</div>}
     </main>
